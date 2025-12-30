@@ -40,9 +40,9 @@ export default function RegisterPage() {
       });
 
       setSuccess(true);
-      // Optionally redirect to login after successful registration
+      // Redirect to registration success page after successful registration
       setTimeout(() => {
-        router.push('/login');
+        router.push('/registration-success');
       }, 3000);
     } catch (err: any) {
       setError(err.message);

@@ -17,6 +17,9 @@ import {
 } from '../types/auth';
 import pool from '../database/connection';
 
+// Import nodemailer using require for compatibility
+const nodemailer = require('nodemailer');
+
 const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_key';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'default_refresh_secret_key';
 
@@ -54,8 +57,8 @@ export class AuthService {
     // Store verification code in Redis with expiration (15 minutes)
     await redisClient.setEx(`verification_code:${verificationCode}`, 900, user.id.toString());
 
-    // In a real application, you would send an email with the verification code
-    console.log(`Verification code for ${user.email}: ${verificationCode}`);
+    // Send verification email
+    await this.sendVerificationEmail(user.email, verificationCode, user.first_name || user.username);
 
     return {
       message: 'User registered successfully. Please verify your email using the code sent to your email.',
@@ -180,8 +183,8 @@ export class AuthService {
     // Store reset code in Redis with expiration (15 minutes)
     await redisClient.setEx(`reset_code:${resetCode}`, 900, user.id.toString());
 
-    // In a real application, you would send an email with the reset code
-    console.log(`Password reset code for ${user.email}: ${resetCode}`);
+    // Send password reset email
+    await this.sendPasswordResetEmail(user.email, resetCode, user.first_name || user.username);
 
     return {
       message: 'If the email exists, a password reset link has been sent'
@@ -292,5 +295,72 @@ export class AuthService {
 
     // Invalidate user cache
     await redisClient.del(`user:${userId}`);
+  }
+
+  private static createTransporter() {
+    return nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp-relay.brevo.com',
+      port: parseInt(process.env.EMAIL_PORT || '587'),
+      secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+  }
+
+  static async sendVerificationEmail(email: string, code: string, name: string): Promise<void> {
+    const transporter = this.createTransporter();
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Verify your email address',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Welcome to Cooklio, ${name}!</h2>
+          <p>Thank you for registering. Please use the following verification code to verify your email address:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <span style="font-size: 24px; font-weight: bold; background-color: #f0f0f0; padding: 10px 20px; border-radius: 5px; letter-spacing: 3px;">
+              ${code}
+            </span>
+          </div>
+          <p>This code will expire in 15 minutes.</p>
+          <p>If you didn't create an account with us, please ignore this email.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+          <p style="color: #666; font-size: 12px;">This is an automated email from Cooklio. Please do not reply to this email.</p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+  }
+
+  static async sendPasswordResetEmail(email: string, code: string, name: string): Promise<void> {
+    const transporter = this.createTransporter();
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Password Reset Request',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Password Reset Request</h2>
+          <p>Hello ${name},</p>
+          <p>You requested to reset your password. Please use the following code to reset your password:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <span style="font-size: 24px; font-weight: bold; background-color: #f0f0f0; padding: 10px 20px; border-radius: 5px; letter-spacing: 3px;">
+              ${code}
+            </span>
+          </div>
+          <p>This code will expire in 15 minutes.</p>
+          <p>If you didn't request a password reset, please ignore this email.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+          <p style="color: #666; font-size: 12px;">This is an automated email from Cooklio. Please do not reply to this email.</p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
   }
 }

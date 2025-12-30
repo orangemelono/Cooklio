@@ -33,10 +33,17 @@ export default function HomePage() {
               </Link>
             </div>
             
-            <div className="mt-4 text-center text-sm text-gray-600">
-              <Link href="/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500">
-                Forgot your password?
-              </Link>
+            <div className="mt-4 text-center text-sm text-gray-600 space-y-2">
+              <div>
+                <Link href="/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500">
+                  Forgot your password?
+                </Link>
+              </div>
+              <div>
+                <Link href="/verify-manual" className="font-medium text-indigo-600 hover:text-indigo-500">
+                  Verify your email
+                </Link>
+              </div>
             </div>
           </div>
         </div>
